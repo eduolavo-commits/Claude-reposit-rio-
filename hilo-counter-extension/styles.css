@@ -1,257 +1,245 @@
-/* ── Hi-Lo Counter HUD ─────────────────────────────────────────────────── */
+/* ==========================================================================
+   Hi-Lo Counter — HUD Styles
+   ========================================================================== */
 
 #hilo-hud {
   position: fixed;
   top: 20px;
   right: 20px;
   z-index: 2147483647;
-  width: 260px;
+  width: 280px;
   background: #0d1117;
   border: 1px solid #30363d;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 13px;
   color: #c9d1d9;
   user-select: none;
-  transition: opacity 0.3s;
+  transition: opacity .25s;
 }
 
-/* ── Cabeçalho ──────────────────────────────────────────────────────────── */
+/* ── Header ──────────────────────────────────────────────────────────────── */
 #hilo-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-  border-radius: 10px 10px 0 0;
+  padding: 9px 12px;
+  background: linear-gradient(135deg,#161b22,#1c2128);
+  border-radius: 12px 12px 0 0;
   cursor: grab;
   border-bottom: 1px solid #21262d;
 }
-
 #hilo-header:active { cursor: grabbing; }
-
-#hilo-title {
-  font-weight: 700;
-  font-size: 13px;
-  color: #e94560;
-  letter-spacing: 0.3px;
+#hilo-title { font-weight: 700; font-size: 13px; color: #e94560; letter-spacing: .3px; }
+#hilo-hbtns { display: flex; gap: 4px; }
+#hilo-hbtns button {
+  width: 20px; height: 20px; border: none; border-radius: 50%;
+  cursor: pointer; font-size: 13px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background .15s;
 }
-
-#hilo-header-btns {
-  display: flex;
-  gap: 4px;
-}
-
-#hilo-header-btns button {
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: background 0.15s;
-}
-
-#hilo-btn-min  { background: #3d4450; color: #c9d1d9; }
-#hilo-btn-min:hover  { background: #58a6ff; color: #fff; }
+#hilo-btn-mon { background: #1a3a1a; color: #3fb950; font-size: 10px; width: 36px; border-radius: 8px; }
+#hilo-btn-mon.off { background: #3a1a1a; color: #e94560; }
+#hilo-btn-min { background: #3d4450; color: #c9d1d9; }
+#hilo-btn-min:hover { background: #58a6ff; color: #fff; }
 #hilo-btn-close { background: #3d4450; color: #c9d1d9; }
 #hilo-btn-close:hover { background: #e94560; color: #fff; }
 
-/* ── Corpo ──────────────────────────────────────────────────────────────── */
-#hilo-body {
-  padding: 10px;
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+#hilo-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ── Stats ──────────────────────────────────────────────────────────────── */
-#hilo-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.hilo-stat-block {
+  border-bottom: 1px solid #21262d;
   background: #161b22;
-  border: 1px solid #21262d;
-  border-radius: 6px;
-  padding: 6px 8px;
-  text-align: center;
 }
-
-.hilo-stat-label {
-  font-size: 10px;
-  color: #8b949e;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 3px;
+.hilo-tab {
+  flex: 1; padding: 7px 4px; text-align: center;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  color: #8b949e; border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+  letter-spacing: .3px; text-transform: uppercase;
 }
+.hilo-tab:hover { color: #c9d1d9; }
+.hilo-tab.active { color: #e94560; border-bottom-color: #e94560; }
 
-.hilo-stat-value {
-  font-size: 20px;
-  font-weight: 800;
-  color: #c9d1d9;
-  line-height: 1;
+/* ── Panel base ──────────────────────────────────────────────────────────── */
+.hilo-panel { display: none; padding: 10px; flex-direction: column; gap: 8px; }
+.hilo-panel.active { display: flex; }
+
+/* ── Stats grid ──────────────────────────────────────────────────────────── */
+.hilo-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
 }
-
-.hilo-pos { color: #3fb950; }
-.hilo-neg { color: #e94560; }
-
-/* Advantage */
-.hilo-adv-neutral  { color: #8b949e; font-size: 13px !important; }
-.hilo-adv-good     { color: #3fb950; font-size: 13px !important; }
-.hilo-adv-high     { color: #56d364; font-size: 13px !important; font-weight: 900 !important; }
-.hilo-adv-bad      { color: #f78166; font-size: 13px !important; }
-.hilo-adv-vbad     { color: #e94560; font-size: 13px !important; font-weight: 900 !important; }
-
-/* ── Linha genérica ─────────────────────────────────────────────────────── */
-.hilo-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.hilo-sblock {
+  background: #161b22; border: 1px solid #21262d;
+  border-radius: 7px; padding: 6px 8px; text-align: center;
 }
+.hilo-slabel { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.hilo-sval   { font-size: 22px; font-weight: 800; color: #c9d1d9; line-height: 1.1; }
+.hilo-sval.sm { font-size: 14px !important; font-weight: 700; }
+.pos { color: #3fb950; }
+.neg { color: #e94560; }
+.adv-high { color: #56d364; }
+.adv-good { color: #3fb950; }
+.adv-neu  { color: #8b949e; }
+.adv-bad  { color: #f78166; }
+.adv-vbad { color: #e94560; }
 
-.hilo-row-label {
-  font-size: 11px;
-  color: #8b949e;
-  white-space: nowrap;
+/* ── Separador ───────────────────────────────────────────────────────────── */
+.hilo-sep { border: none; border-top: 1px solid #21262d; margin: 0; }
+
+/* ── Linha row ───────────────────────────────────────────────────────────── */
+.hilo-row { display: flex; align-items: center; gap: 8px; }
+.hilo-rlabel { font-size: 11px; color: #8b949e; white-space: nowrap; flex-shrink: 0; }
+select.hilo-sel {
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 5px; padding: 3px 6px; font-size: 12px; cursor: pointer; flex: 1;
 }
-
-/* ── Select baralhos ────────────────────────────────────────────────────── */
-#hilo-decks {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 12px;
-  cursor: pointer;
-  flex: 1;
-}
-
-/* ── Toggle auto ────────────────────────────────────────────────────────── */
 .hilo-toggle {
-  border: none;
-  border-radius: 4px;
-  padding: 2px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.5px;
+  border: none; border-radius: 5px; padding: 3px 10px;
+  font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: .3px;
 }
 .hilo-toggle.on  { background: #238636; color: #fff; }
 .hilo-toggle.off { background: #3d1f1f; color: #f78166; }
 
-/* ── Manual: botões rápidos ─────────────────────────────────────────────── */
-#hilo-manual-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
+/* ── Histórico chips ─────────────────────────────────────────────────────── */
+#hilo-history { display: flex; flex-wrap: wrap; gap: 3px; min-height: 18px; }
+.hchip { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 600; cursor: default; }
+.hchip.p { background: #1a2e1a; color: #3fb950; }
+.hchip.n { background: #2e1a1f; color: #e94560; }
+.hchip.z { background: #21262d; color: #8b949e; }
 
-.hilo-card-quick {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  border-radius: 5px;
-  padding: 5px 2px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.hilo-card-quick:hover { background: #30363d; border-color: #58a6ff; }
-.hilo-card-quick[data-v="1"]  { color: #3fb950; border-color: #238636; }
-.hilo-card-quick[data-v="-1"] { color: #e94560; border-color: #6e1423; }
-
-/* ── Picker carta exata ─────────────────────────────────────────────────── */
-#hilo-card-picker { margin-top: 4px; }
-
-.hilo-picker-label {
-  font-size: 10px;
-  color: #8b949e;
-  margin-bottom: 3px;
-}
-
-#hilo-picker-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
-
-.hilo-pick {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid #30363d;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.1s, background 0.15s;
-}
-.hilo-pick:active { transform: scale(0.9); }
-
-.hilo-pick[data-v="1"]  { background: #1a2e1a; color: #56d364; border-color: #238636; }
-.hilo-pick[data-v="0"]  { background: #21262d; color: #8b949e; border-color: #30363d; }
-.hilo-pick[data-v="-1"] { background: #2e1a1f; color: #f78166; border-color: #6e1423; }
-
-.hilo-pick:hover { opacity: 0.85; }
-
-/* ── Histórico ──────────────────────────────────────────────────────────── */
-#hilo-history-section { border-top: 1px solid #21262d; padding-top: 6px; }
-
-#hilo-history {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 4px;
-  min-height: 20px;
-}
-
-.hist-chip {
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: default;
-}
-.hist-p { background: #1a2e1a; color: #3fb950; }
-.hist-n { background: #2e1a1f; color: #e94560; }
-.hist-z { background: #21262d; color: #8b949e; }
-
-/* ── Ações ──────────────────────────────────────────────────────────────── */
-#hilo-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid #21262d;
-  padding-top: 6px;
-}
-
+/* ── Botão reset ─────────────────────────────────────────────────────────── */
 #hilo-reset {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
-  border-radius: 5px;
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: background 0.15s;
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 6px; padding: 5px; font-size: 11px; cursor: pointer;
+  transition: background .15s; flex: 1;
 }
 #hilo-reset:hover { background: #e94560; color: #fff; border-color: #e94560; }
 
-#hilo-shortcuts {
-  font-size: 10px;
-  color: #58a6ff;
-  cursor: help;
-  text-decoration: underline dotted;
+/* ── Visual monitor status ───────────────────────────────────────────────── */
+#hilo-visstatus {
+  font-size: 10px; padding: 3px 8px; border-radius: 5px;
+  background: #1a2e1a; color: #3fb950; text-align: center;
+}
+#hilo-visstatus.off { background: #21262d; color: #8b949e; }
+#hilo-visstatus.alert { background: #2e2a1a; color: #e3b341; animation: blink .4s step-end 4; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TAB 2 — DECISÃO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Big action box */
+#hilo-action-box {
+  background: #161b22; border: 2px solid #30363d; border-radius: 10px;
+  padding: 10px; text-align: center; transition: border-color .2s;
+}
+#hilo-action-box.act-hit    { border-color: #58a6ff; }
+#hilo-action-box.act-stand  { border-color: #3fb950; }
+#hilo-action-box.act-double { border-color: #e3b341; }
+#hilo-action-box.act-split  { border-color: #bc8cff; }
+#hilo-action-box.act-surr   { border-color: #e94560; }
+#hilo-action-main {
+  font-size: 26px; font-weight: 900; letter-spacing: .5px; line-height: 1;
+}
+.act-hit    #hilo-action-main { color: #58a6ff; }
+.act-stand  #hilo-action-main { color: #3fb950; }
+.act-double #hilo-action-main { color: #e3b341; }
+.act-split  #hilo-action-main { color: #bc8cff; }
+.act-surr   #hilo-action-main { color: #e94560; }
+#hilo-action-sub { font-size: 11px; color: #8b949e; margin-top: 3px; }
+#hilo-action-dev { font-size: 10px; color: #e3b341; margin-top: 3px; font-style: italic; }
+
+/* Hand picker */
+.hilo-hand-section { display: flex; flex-direction: column; gap: 5px; }
+.hilo-hand-label { font-size: 11px; color: #8b949e; margin-bottom: 2px; }
+.hilo-hand-display {
+  min-height: 30px; background: #161b22; border: 1px solid #21262d;
+  border-radius: 6px; padding: 4px 6px; display: flex; flex-wrap: wrap; gap: 3px;
+  align-items: center;
+}
+.hilo-card-chip {
+  background: #f8f8f8; color: #111; border-radius: 4px;
+  padding: 2px 7px; font-size: 12px; font-weight: 800;
+  cursor: pointer; border: 1px solid #ddd;
+  transition: transform .1s;
+}
+.hilo-card-chip:hover { transform: scale(1.1); }
+.hilo-card-chip.red { color: #c0392b; }
+.hilo-card-chip.dealer { background: #1a2e3a; color: #58a6ff; border-color: #1e4a6a; font-size: 14px; }
+.hilo-card-chip.placeholder { background: transparent; border: 1px dashed #30363d; color: #8b949e; font-size: 11px; }
+
+/* Card picker grid */
+#hilo-picker-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+}
+.hpick {
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 4px; padding: 5px 2px; font-size: 11px; font-weight: 700;
+  cursor: pointer; text-align: center; transition: background .1s, transform .1s;
+}
+.hpick:active { transform: scale(.9); }
+.hpick.pv1  { color: #3fb950; border-color: #238636; background: #1a2e1a; }
+.hpick.pv0  { color: #8b949e; }
+.hpick.pvm1 { color: #e94560; border-color: #6e1423; background: #2e1a1f; }
+.hpick:hover { opacity: .8; }
+
+.hilo-hand-actions { display: flex; gap: 4px; }
+.hhand-btn {
+  flex: 1; background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 5px; padding: 4px; font-size: 11px; cursor: pointer;
+  transition: background .15s;
+}
+.hhand-btn:hover { background: #30363d; }
+.hhand-btn.primary { background: #1f3a1f; color: #3fb950; border-color: #238636; }
+.hhand-btn.primary:hover { background: #238636; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TAB 3 — BARALHO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Bet box */
+#hilo-bet-box {
+  background: #161b22; border: 2px solid #30363d; border-radius: 10px;
+  padding: 8px 12px; display: flex; align-items: center; gap: 10px;
+}
+#hilo-bet-icon { font-size: 22px; }
+#hilo-bet-info { flex: 1; }
+#hilo-bet-main { font-size: 17px; font-weight: 800; color: #e3b341; }
+#hilo-bet-sub  { font-size: 10px; color: #8b949e; margin-top: 1px; }
+
+/* Join advice */
+#hilo-join-box {
+  border-radius: 7px; padding: 6px 10px; text-align: center;
+  font-size: 12px; font-weight: 700;
+}
+#hilo-join-box.join  { background: #1a2e1a; color: #3fb950; border: 1px solid #238636; }
+#hilo-join-box.wait  { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+#hilo-join-box.leave { background: #2e1a1f; color: #e94560; border: 1px solid #6e1423; }
+
+/* Deck composition bar */
+.hilo-comp-row { display: flex; flex-direction: column; gap: 4px; }
+.hilo-comp-label { font-size: 10px; color: #8b949e; display: flex; justify-content: space-between; }
+.hilo-comp-bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; display: flex; }
+.hilo-comp-high { background: #e94560; height: 100%; transition: width .3s; }
+.hilo-comp-neu  { background: #8b949e; height: 100%; transition: width .3s; }
+.hilo-comp-low  { background: #3fb950; height: 100%; transition: width .3s; }
+
+/* Remaining ranks mini-table */
+#hilo-ranks-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-top: 2px;
+}
+.hrank {
+  background: #161b22; border: 1px solid #21262d; border-radius: 4px;
+  padding: 3px 2px; text-align: center; font-size: 10px;
+}
+.hrank .hr-name { color: #8b949e; font-size: 9px; }
+.hrank .hr-val  { font-weight: 700; font-size: 12px; color: #c9d1d9; }
+.hrank.depleted { opacity: .4; }
+.hrank.high-rem { border-color: #3fb950; }
+
+/* Shortcuts hint */
+#hilo-shortcuts-hint {
+  font-size: 10px; color: #3d4450; text-align: center; line-height: 1.5;
 }
