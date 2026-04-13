@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hi-Lo Counter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 260px;
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #161b22, #1c2128);
+      padding: 12px 14px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header .logo { font-size: 20px; }
+    header h1 { font-size: 14px; font-weight: 700; color: #e94560; }
+    header p  { font-size: 10px; color: #8b949e; margin-top: 2px; }
+
+    section {
+      padding: 12px 14px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #58a6ff;
+      margin-bottom: 8px;
+    }
+
+    .rule-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge.plus    { background: #1a2e1a; color: #3fb950; }
+    .badge.zero    { background: #21262d; color: #8b949e; }
+    .badge.minus   { background: #2e1a1f; color: #e94560; }
+
+    .shortcut-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-size: 12px;
+    }
+
+    kbd {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .tip {
+      font-size: 11px;
+      color: #8b949e;
+      line-height: 1.5;
+    }
+
+    footer {
+      padding: 8px 14px;
+      text-align: center;
+      font-size: 10px;
+      color: #3d4450;
+    }
+
+    .inject-btn {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background 0.15s;
+    }
+    .inject-btn:hover { background: #2ea043; }
+
+    #status {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #3fb950;
+      text-align: center;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">&#9824;</div>
+    <div>
+      <h1>Hi-Lo Counter</h1>
+      <p>Contador automático para blackjack</p>
+    </div>
+  </header>
+
+  <section>
+    <h2>Sistema Hi-Lo</h2>
+    <div class="rule-row">
+      <span>Cartas 2 a 6</span>
+      <span class="badge plus">+1 (baixas)</span>
+    </div>
+    <div class="rule-row">
+      <span>Cartas 7, 8, 9</span>
+      <span class="badge zero"> 0 (neutras)</span>
+    </div>
+    <div class="rule-row">
+      <span>10, J, Q, K, A</span>
+      <span class="badge minus">-1 (altas)</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Atalhos (Alt + tecla)</h2>
+    <div class="shortcut-row">
+      <span>Adicionar +1</span><kbd>Alt + ↑</kbd>
+    </div>
+    <div class="shortcut-row">
+      <span>Adicionar -1</span><kbd>Alt + ↓</kbd>
+    </div>
+    <div class="shortcut-row">
+      <span>Adicionar  0</span><kbd>Alt + →</kbd>
+    </div>
+    <div class="shortcut-row">
+      <span>Resetar</span><kbd>Alt + R</kbd>
+    </div>
+    <div class="shortcut-row">
+      <span>Ocultar HUD</span><kbd>Alt + H</kbd>
+    </div>
+  </section>
+
+  <section>
+    <h2>Injetar HUD na página</h2>
+    <p class="tip">Se o HUD não aparecer automaticamente, clique abaixo:</p>
+    <button class="inject-btn" id="inject-btn">&#9654; Ativar contador nesta aba</button>
+    <div id="status"></div>
+  </section>
+
+  <footer>Blackjack Hi-Lo Counter v1.0</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
