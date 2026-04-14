@@ -1,17 +1,20 @@
 /**
- * content.js
- * NAO toca no codigo do site. NAO usa MutationObserver. NAO injeta scripts.
- * So adiciona um HUD por cima do jogo e recebe avisos do background.
+ * content.js — HUD + auto-detecção de cartas + atalhos de teclado
+ * NAO usa MutationObserver. NAO injeta scripts. Escuta screenshots do background.
  */
 (function () {
 'use strict';
-if (document.getElementById('hilo-hud')) return;
 
-// ── Estado ──────────────────────────────────────────────────────────────────
-let rc = 0, dealt = 0, numDecks = 6;
-let history = [], playerHand = [], dealerCard = null;
-let monitoring = false, alertVisible = false;
-const seenEls = new WeakSet();
+const IS_TOP = window === window.top;
+if (IS_TOP && document.getElementById('hilo-hud')) return;
+
+// ── Hi-Lo (necessário em todos os frames para normalizeRank) ─────────────────
+const HILO = {'2':1,'3':1,'4':1,'5':1,'6':1,'7':0,'8':0,'9':0,'10':-1,'J':-1,'Q':-1,'K':-1,'A':-1};
+const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const rankCls = r => HILO[r] > 0 ? 'pv1' : HILO[r] < 0 ? 'pvm1' : 'pv0';
+
+// ── Deteção de cartas (corre em todos os frames) ─────────────────────────────
+let seenEls = new WeakSet();
 
 function normalizeRank(raw) {
   if (!raw) return null;
@@ -24,10 +27,56 @@ function normalizeRank(raw) {
   return HILO[v] !== undefined ? v : null;
 }
 
-// ── Hi-Lo ────────────────────────────────────────────────────────────────────
-const HILO = {'2':1,'3':1,'4':1,'5':1,'6':1,'7':0,'8':0,'9':0,'10':-1,'J':-1,'Q':-1,'K':-1,'A':-1};
-const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-const rankCls = r => HILO[r] > 0 ? 'pv1' : HILO[r] < 0 ? 'pvm1' : 'pv0';
+function scanForCards() {
+  const found = [];
+
+  // data-card / data-rank / data-value / data-face
+  document.querySelectorAll('[data-card],[data-rank],[data-value],[data-face]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const raw = el.dataset.card || el.dataset.rank || el.dataset.value || el.dataset.face;
+    const r = normalizeRank(raw);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  // .card / class*="card" com texto curto (≤3 chars)
+  document.querySelectorAll('.card,[class*="card"],[class*="Card"]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const txt = (el.textContent || '').trim().split(/\s/)[0];
+    if (txt.length > 3) return;
+    const r = normalizeRank(txt);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  // aria-label / alt com "of " (ex: "King of Spades")
+  document.querySelectorAll('[aria-label*=" of "],[alt*=" of "]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const txt = el.getAttribute('aria-label') || el.getAttribute('alt') || '';
+    const r = normalizeRank(txt.split(/\s/)[0]);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  return found;
+}
+
+// ── Sub-frame: apenas scana e reporta ao frame principal ─────────────────────
+if (!IS_TOP) {
+  chrome.runtime.onMessage.addListener(msg => {
+    if (msg.type !== 'SCREEN_CHANGED') return;
+    const cards = scanForCards();
+    if (cards.length) {
+      try { window.top.postMessage({type:'HILO_CARDS', cards, level: msg.level}, '*'); } catch(_) {}
+    }
+  });
+  return; // sub-frames não criam HUD nem listeners de teclado
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  FRAME PRINCIPAL APENAS
+// ════════════════════════════════════════════════════════════════════════════
+
+let rc = 0, dealt = 0, numDecks = 6;
+let history = [], playerHand = [], dealerCard = null;
+let monitoring = false;
 
 function addCard(rank, source) {
   const hv = HILO[rank];
@@ -35,14 +84,19 @@ function addCard(rank, source) {
   rc += hv; dealt++;
   history.unshift({ rank, hv, rc, source });
   if (history.length > 20) history.pop();
-  render(); hideAlert();
+  render();
 }
 
-function resetAll() { rc = 0; dealt = 0; history = []; playerHand = []; dealerCard = null; render(); }
+function resetAll() {
+  rc = 0; dealt = 0; history = [];
+  playerHand = []; dealerCard = null;
+  seenEls = new WeakSet();
+  render();
+}
 
 function tc() { return rc / Math.max(0.5, (numDecks * 52 - dealt) / 52); }
 
-// ── Estrategia Basica (6 baralhos S17) ───────────────────────────────────────
+// ── Estratégia Básica (6 baralhos S17) ──────────────────────────────────────
 const DI = {'2':0,'3':1,'4':2,'5':3,'6':4,'7':5,'8':6,'9':7,'10':8,'J':8,'Q':8,'K':8,'A':9};
 const HARD = {
    8:'H H H H H H H H H H', 9:'H D D D D H H H H H',
@@ -154,10 +208,6 @@ function createHUD() {
     <div class="hblock"><div class="hbl">Cartas vistas</div><div class="hbv" id="h-cd">0</div></div>
     <div class="hblock"><div class="hbl">Vantagem</div><div class="hbv sm" id="h-adv">Neutro</div></div>
   </div>
-  <div id="hilo-alert" style="display:none">
-    <div id="hilo-alert-txt">Carta nova detectada — qual foi?</div>
-    <div class="hpickrow" id="h-alert-picks">${pickerHTML('alert')}</div>
-  </div>
   <div class="hrow">
     <span class="hrl">Baralhos:</span>
     <select class="hsel" id="h-decks">
@@ -169,7 +219,7 @@ function createHUD() {
   </div>
   <div id="h-hist"></div>
   <div id="h-mon-st">&#128065; Desligado — clique em OFF para ligar</div>
-  <div class="hshort">Alt+seta cima +1 | baixo -1 | direita 0 | R reset | H ocultar</div>
+  <div class="hshort">Teclas: 1/A=As | 2-9=carta | 0=10 | J Q K | Alt+R=reset | Alt+H=ocultar</div>
 </div>
 
 <div class="hpanel" id="hp-dec">
@@ -252,63 +302,60 @@ function toggleMonitor(){
   const st=document.getElementById('h-mon-st');
   if(btn)btn.innerHTML=monitoring?'&#128065; ON':'&#128065; OFF';
   if(st){st.textContent=monitoring?'A monitorizar o ecra...':'Desligado — clique em OFF para ligar';st.className=monitoring?'mon-on':'';}
-  chrome.runtime.sendMessage({type:monitoring?'START_CAPTURE':'STOP_CAPTURE',tabId:0});
+  chrome.runtime.sendMessage({type:monitoring?'START_CAPTURE':'STOP_CAPTURE'});
 }
 
-chrome.runtime.onMessage.addListener(msg=>{
-  if(msg.type!=='SCREEN_CHANGED'||!monitoring)return;
-  tryAutoDetect(msg.level);
+// ── Receber cartas de sub-frames (iframes do casino) ─────────────────────────
+window.addEventListener('message', e => {
+  if (!e.data || e.data.type !== 'HILO_CARDS' || !monitoring) return;
+  if (e.data.level === 'big') { playerHand = []; dealerCard = null; seenEls = new WeakSet(); }
+  e.data.cards.forEach(r => addCard(r, 'auto'));
 });
 
-function tryAutoDetect(level) {
-  if (level === 'big') { playerHand = []; dealerCard = null; }
+// ── SCREEN_CHANGED do background: scana este frame silenciosamente ────────────
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg.type !== 'SCREEN_CHANGED' || !monitoring) return;
+  if (msg.level === 'big') { playerHand = []; dealerCard = null; seenEls = new WeakSet(); }
+  const cards = scanForCards();
+  cards.forEach(r => addCard(r, 'auto'));
+  // sem popup manual — usar teclas de atalho
+});
 
-  const found = [];
-
-  // Estratégia 1: atributos data-card / data-rank / data-value / data-face
-  document.querySelectorAll('[data-card],[data-rank],[data-value],[data-face]').forEach(el => {
-    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
-    const raw = el.dataset.card || el.dataset.rank || el.dataset.value || el.dataset.face;
-    const r = normalizeRank(raw);
-    if (r) { seenEls.add(el); found.push(r); }
-  });
-
-  // Estratégia 2: elementos .card / [class*="card"] com texto curto (<=3 chars)
-  document.querySelectorAll('.card,[class*="card"],[class*="Card"]').forEach(el => {
-    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
-    const txt = (el.textContent || '').trim().split(/\s/)[0];
-    if (txt.length > 3) return;
-    const r = normalizeRank(txt);
-    if (r) { seenEls.add(el); found.push(r); }
-  });
-
-  // Estratégia 3: aria-label / alt com "of " (ex: "King of Spades")
-  document.querySelectorAll('[aria-label*=" of "],[alt*=" of "]').forEach(el => {
-    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
-    const txt = el.getAttribute('aria-label') || el.getAttribute('alt') || '';
-    const r = normalizeRank(txt.split(/\s/)[0]);
-    if (r) { seenEls.add(el); found.push(r); }
-  });
-
-  if (found.length) { found.forEach(r => addCard(r, 'auto')); return; }
-  showAlert(level);  // fallback: picker manual
+// ── Atalhos de teclado ────────────────────────────────────────────────────────
+function isInputFocused() {
+  const a = document.activeElement;
+  if (!a || a === document.body || a.closest('#hilo-hud')) return false;
+  return !!(a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' ||
+            a.isContentEditable || a.closest('[contenteditable]'));
 }
 
-function showAlert(level){
-  if(alertVisible)return;
-  alertVisible=true;
-  const box=document.getElementById('hilo-alert');
-  const txt=document.getElementById('hilo-alert-txt');
-  if(box)box.style.display='';
-  if(txt)txt.textContent=level==='big'?'Nova ronda — qual carta saiu?':'Carta detectada — clique para registar:';
-  setTimeout(hideAlert,8000);
-}
+document.addEventListener('keydown', e => {
+  // Alt shortcuts (existentes)
+  if (e.altKey) {
+    if (e.key==='ArrowUp'){addCard('6','key');e.preventDefault();}
+    if (e.key==='ArrowDown'){addCard('A','key');e.preventDefault();}
+    if (e.key==='ArrowRight'){addCard('8','key');e.preventDefault();}
+    if (e.key==='r'||e.key==='R'){resetAll();e.preventDefault();}
+    if (e.key==='h'||e.key==='H'){
+      const h=document.getElementById('hilo-hud');
+      if(h)h.style.opacity=h.style.opacity==='0.15'?'1':'0.15';
+      e.preventDefault();
+    }
+    return;
+  }
 
-function hideAlert(){
-  alertVisible=false;
-  const box=document.getElementById('hilo-alert');
-  if(box)box.style.display='none';
-}
+  // Teclas de carta (sem modificador) — só se nenhum input estiver focado
+  if (isInputFocused()) return;
+
+  // 0=10 | 1=A | 2-9=carta | a/A=As | j/J=J | q/Q=Q | k/K=K
+  const CARDKEYS = {
+    '0':'10','1':'A','2':'2','3':'3','4':'4',
+    '5':'5','6':'6','7':'7','8':'8','9':'9',
+    'a':'A','j':'J','q':'Q','k':'K'
+  };
+  const rank = CARDKEYS[e.key.toLowerCase()];
+  if (rank) { addCard(rank, 'key'); e.preventDefault(); }
+});
 
 function render(){
   const tv=tc(),av=advText(),bi=betInfo(),adv=advice();
@@ -366,19 +413,6 @@ function makeDraggable(el){
   document.addEventListener('mousemove',e=>{if(!drag)return;el.style.left=(e.clientX-ox)+'px';el.style.top=(e.clientY-oy)+'px';el.style.right='auto';el.style.bottom='auto';});
   document.addEventListener('mouseup',()=>{drag=false;});
 }
-
-document.addEventListener('keydown',e=>{
-  if(!e.altKey)return;
-  if(e.key==='ArrowUp'){addCard('6','key');e.preventDefault();}
-  if(e.key==='ArrowDown'){addCard('A','key');e.preventDefault();}
-  if(e.key==='ArrowRight'){addCard('8','key');e.preventDefault();}
-  if(e.key==='r'||e.key==='R'){resetAll();e.preventDefault();}
-  if(e.key==='h'||e.key==='H'){
-    const h=document.getElementById('hilo-hud');
-    if(h)h.style.opacity=h.style.opacity==='0.15'?'1':'0.15';
-    e.preventDefault();
-  }
-});
 
 createHUD();
 })();
