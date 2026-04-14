@@ -87,8 +87,9 @@ function stopCapture() {
 
 // Mensagens do popup / content script
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  const tabId = sender.tab?.id;
   if (msg.type === 'START_CAPTURE') {
-    startCapture(msg.tabId);
+    if (tabId) startCapture(tabId);
     sendResponse({ ok: true });
   }
   if (msg.type === 'STOP_CAPTURE') {
@@ -96,7 +97,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
   }
   if (msg.type === 'IS_CAPTURING') {
-    sendResponse({ active: captureTabId === msg.tabId });
+    sendResponse({ active: captureTabId === tabId });
   }
   return true;
 });

@@ -11,6 +11,18 @@ if (document.getElementById('hilo-hud')) return;
 let rc = 0, dealt = 0, numDecks = 6;
 let history = [], playerHand = [], dealerCard = null;
 let monitoring = false, alertVisible = false;
+const seenEls = new WeakSet();
+
+function normalizeRank(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().toUpperCase().split(/[\s♠♥♦♣]/)[0];
+  const MAP = {'1':'A','11':'J','12':'Q','13':'K',
+    'ACE':'A','JACK':'J','QUEEN':'Q','KING':'K',
+    'TWO':'2','THREE':'3','FOUR':'4','FIVE':'5',
+    'SIX':'6','SEVEN':'7','EIGHT':'8','NINE':'9','TEN':'10'};
+  const v = MAP[s] || s;
+  return HILO[v] !== undefined ? v : null;
+}
 
 // ── Hi-Lo ────────────────────────────────────────────────────────────────────
 const HILO = {'2':1,'3':1,'4':1,'5':1,'6':1,'7':0,'8':0,'9':0,'10':-1,'J':-1,'Q':-1,'K':-1,'A':-1};
@@ -245,8 +257,42 @@ function toggleMonitor(){
 
 chrome.runtime.onMessage.addListener(msg=>{
   if(msg.type!=='SCREEN_CHANGED'||!monitoring)return;
-  showAlert(msg.level);
+  tryAutoDetect(msg.level);
 });
+
+function tryAutoDetect(level) {
+  if (level === 'big') { playerHand = []; dealerCard = null; }
+
+  const found = [];
+
+  // Estratégia 1: atributos data-card / data-rank / data-value / data-face
+  document.querySelectorAll('[data-card],[data-rank],[data-value],[data-face]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const raw = el.dataset.card || el.dataset.rank || el.dataset.value || el.dataset.face;
+    const r = normalizeRank(raw);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  // Estratégia 2: elementos .card / [class*="card"] com texto curto (<=3 chars)
+  document.querySelectorAll('.card,[class*="card"],[class*="Card"]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const txt = (el.textContent || '').trim().split(/\s/)[0];
+    if (txt.length > 3) return;
+    const r = normalizeRank(txt);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  // Estratégia 3: aria-label / alt com "of " (ex: "King of Spades")
+  document.querySelectorAll('[aria-label*=" of "],[alt*=" of "]').forEach(el => {
+    if (seenEls.has(el) || el.closest('#hilo-hud')) return;
+    const txt = el.getAttribute('aria-label') || el.getAttribute('alt') || '';
+    const r = normalizeRank(txt.split(/\s/)[0]);
+    if (r) { seenEls.add(el); found.push(r); }
+  });
+
+  if (found.length) { found.forEach(r => addCard(r, 'auto')); return; }
+  showAlert(level);  // fallback: picker manual
+}
 
 function showAlert(level){
   if(alertVisible)return;
