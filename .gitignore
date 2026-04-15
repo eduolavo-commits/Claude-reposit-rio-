@@ -3,4 +3,6 @@ lead-scraper/*.html
 lead-scraper/credentials.json
 lead-scraper/.env
 lead-scraper/leads.db
+lead-scraper/leads.db-shm
+lead-scraper/leads.db-wal
 lead-scraper/logs/
