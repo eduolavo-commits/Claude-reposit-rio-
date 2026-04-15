@@ -1,12 +1,13 @@
 """
 parser.py — Extração de dados de HTML usando BeautifulSoup.
 
-Dois pontos de entrada públicos:
-  - extract_cids_from_search_results(html) → list[str]
-  - parse_profile(html, cid, profile_url)   → dict
+Seletores calibrados com HTML real do site marykay.com.br (Abril/2026).
 
-Os seletores CSS estão separados em constantes para fácil calibração
-após a sessão de debug com HEADLESS=False.
+Dois pontos de entrada públicos:
+  - extract_profile_urls_from_search(html)  → list[str]  (URLs das consultoras)
+  - parse_profile(html, profile_url)        → dict       (dados completos)
+
+A função parse_profile também extrai o CID de dentro do HTML do perfil.
 """
 import re
 from typing import Optional
@@ -23,298 +24,289 @@ _UUID_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-_PHONE_PATTERN = re.compile(
-    r"\(?\d{2}\)?\s*\d{4,5}[-\s]?\d{4}"
-)
+_PHONE_PATTERN = re.compile(r"\(?\d{2}\)?\s*\d{4,5}[-\s]?\d{4}")
+_CEP_PATTERN   = re.compile(r"\d{5}-?\d{3}")
 
-_CEP_PATTERN = re.compile(r"\d{5}-?\d{3}")
-
-# ---------------------------------------------------------------------------
-# Seletores CSS — AJUSTE AQUI após sessão de calibração com HEADLESS=False
-# ---------------------------------------------------------------------------
-
-# Página de resultados de busca
-_RESULT_LINK_SELECTORS = [
-    "a[href*='cid=']",          # Link direto com ?cid=UUID
-    "a[href*='/profile']",      # Links de perfil em geral
-    "[data-cid]",               # Atributo data-cid nos cards
-]
-
-# Página de perfil individual
-_NAME_SELECTORS = [
-    "h1",
-    ".consultant-name",
-    "[class*='consultantName']",
-    "[class*='consultant-name']",
-    "[class*='profile-name']",
-    "[class*='profileName']",
-    "[class*='name']",
-]
-
-_TITLE_SELECTORS = [
-    ".consultant-title",
-    "[class*='consultantTitle']",
-    "[class*='consultant-title']",
-    "[class*='profile-title']",
-    "[class*='profileTitle']",
-    "[class*='title']",
-]
-
-_LOCATION_SELECTORS = [
-    "[class*='location']",
-    "[class*='address']",
-    "[class*='cidade']",
-    "[class*='city']",
-    "address",
-]
-
-_SERVICES_SELECTORS = [
-    "[class*='service']",
-    "[class*='servico']",
-    "[class*='offering']",
-]
-
-_DELIVERY_SELECTORS = [
-    "[class*='delivery']",
-    "[class*='entrega']",
-    "[class*='shipping']",
-]
+# Base do site para construir URLs absolutas
+_BASE_URL = "https://www.marykay.com.br"
 
 
 # ---------------------------------------------------------------------------
-# Função 1: extrai CIDs da página de resultados
+# Função 1: extrai URLs de perfil da página de resultados de busca por CEP
 # ---------------------------------------------------------------------------
 
-def extract_cids_from_search_results(html: str) -> list[str]:
+def extract_profile_urls_from_search(html: str) -> list[str]:
     """
-    Analisa o HTML da página de busca por CEP e retorna lista de CIDs únicos.
+    Analisa o HTML da página de busca (após submit do formulário de CEP)
+    e retorna URLs absolutas dos perfis das consultoras encontradas.
 
-    Estratégias (em ordem de confiabilidade):
-    1. href de links contendo '?cid=<UUID>'
-    2. Atributos data-cid nos cards
-    3. Qualquer UUID em hrefs de links /profile
+    Estrutura real do site:
+      #searchresult  →  <a href="/slug/pt-br/locator/profile?fromLocator=True...">
     """
     soup = BeautifulSoup(html, "html.parser")
-    cids: list[str] = []
+    urls: list[str] = []
     seen: set[str] = set()
 
-    def _add(cid: str) -> None:
-        cid = cid.lower().strip()
-        if cid and cid not in seen:
-            seen.add(cid)
-            cids.append(cid)
+    # Foco na seção de resultados
+    result_section = soup.find(id="searchresult") or soup
 
-    # Estratégia 1 & 3: href com UUID
-    for tag in soup.find_all(href=True):
-        href: str = tag["href"]
-        if "cid=" in href or "/profile" in href:
-            match = _UUID_PATTERN.search(href)
-            if match:
-                _add(match.group(0))
+    for a in result_section.find_all("a", href=True):
+        href: str = a["href"]
+        # Links de perfil do localizador (vanity URLs)
+        if "/locator/profile" in href and "fromLocator=True" in href:
+            # Constrói URL absoluta
+            full_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
+            # Normaliza: garante que é unique
+            key = full_url.split("?")[0]
+            if key not in seen:
+                seen.add(key)
+                urls.append(full_url)
 
-    # Estratégia 2: atributo data-cid
-    for tag in soup.find_all(attrs={"data-cid": True}):
-        _add(str(tag["data-cid"]))
-
-    if cids:
-        logger.debug(f"extract_cids: encontrados {len(cids)} CID(s)")
+    if urls:
+        logger.debug(f"extract_profile_urls: {len(urls)} perfil(is) encontrado(s)")
     else:
-        logger.debug("extract_cids: nenhum CID encontrado no HTML — seletores precisam calibração?")
+        logger.debug("extract_profile_urls: nenhum perfil encontrado nos resultados")
 
-    return cids
+    return urls
 
 
 # ---------------------------------------------------------------------------
 # Função 2: parseia a página de perfil de uma consultora
 # ---------------------------------------------------------------------------
 
-def parse_profile(html: str, cid: str, profile_url: str) -> dict:
+def parse_profile(html: str, profile_url: str) -> dict:
     """
     Extrai todos os campos públicos de uma página de perfil de consultora.
 
-    Retorna dict com campos:
+    Seletores confirmados com HTML real:
+      - h1                    → nome
+      - .ibc-title            → título (Consultora / Diretora)
+      - .city                 → cidade
+      - .state                → estado (UF)
+      - .location             → texto com cidade+UF+CEP
+      - a[href^="tel:"]       → telefones
+      - a[href*="instagram"]  → instagram (excluindo marykaybrasil)
+      - .specialties ul li    → especialidades/serviços
+      - .options ul li        → opções de entrega
+      - a[href*="cid="]       → CID (UUID) da consultora
+
+    Retorna dict com:
       cid, name, title, city, state, zip_code,
       phones, instagram, services, delivery_options, profile_url
     """
     soup = BeautifulSoup(html, "html.parser")
 
-    name = _extract_name(soup)
-    title = _extract_title(soup)
+    cid           = _extract_cid(soup, profile_url)
+    name          = _extract_name(soup)
+    title         = _extract_title(soup)
     city, state, zip_code = _extract_location(soup)
-    phones = _extract_phones(soup)
-    instagram = _extract_instagram(soup)
-    services = _extract_list_section(soup, _SERVICES_SELECTORS)
-    delivery_options = _extract_list_section(soup, _DELIVERY_SELECTORS)
+    phones        = _extract_phones(soup)
+    instagram     = _extract_instagram(soup)
+    services      = _extract_items(soup, ".specialties ul li", ".specialties li")
+    delivery_opts = _extract_items(soup, ".options ul li", ".options li")
 
     lead = {
-        "cid": cid,
-        "name": name,
-        "title": title,
-        "city": city,
-        "state": state,
-        "zip_code": zip_code,
-        "phones": phones,
-        "instagram": instagram,
-        "services": services,
-        "delivery_options": delivery_options,
-        "profile_url": profile_url,
+        "cid":              cid,
+        "name":             name,
+        "title":            title,
+        "city":             city,
+        "state":            state,
+        "zip_code":         zip_code,
+        "phones":           phones,
+        "instagram":        instagram,
+        "services":         services,
+        "delivery_options": delivery_opts,
+        "profile_url":      profile_url,
     }
 
-    if not name:
-        logger.warning(
-            f"parse_profile: nome vazio para CID {cid} — "
-            "verifique os seletores CSS em _NAME_SELECTORS"
-        )
-
     logger.debug(
-        f"Perfil parseado: cid={cid} name='{name}' city='{city}' "
-        f"phones={phones} instagram='{instagram}'"
+        f"Perfil: cid={cid} nome='{name}' cidade='{city}/{state}' "
+        f"fones={phones} ig='{instagram}'"
     )
     return lead
 
 
 # ---------------------------------------------------------------------------
-# Helpers internos
+# Helpers internos — todos baseados em seletores confirmados
 # ---------------------------------------------------------------------------
 
-def _first_text(soup: BeautifulSoup, selectors: list[str]) -> str:
-    """Retorna o texto do primeiro elemento encontrado pelos seletores."""
-    for sel in selectors:
-        try:
-            el = soup.select_one(sel)
-            if el:
-                text = el.get_text(separator=" ", strip=True)
-                if text:
-                    return text
-        except Exception:
-            continue
+def _extract_cid(soup: BeautifulSoup, profile_url: str) -> str:
+    """
+    Extrai o CID (UUID) da consultora.
+    Prioridade:
+      1. Link self-referenciante com ?cid=UUID no perfil
+      2. UUID em src de imagens de consultora
+      3. UUID já presente na profile_url
+    """
+    # 1. Link com cid= dentro do próprio perfil
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if "cid=" in href:
+            m = _UUID_PATTERN.search(href)
+            if m:
+                return m.group(0).lower()
+
+    # 2. UUID em src de imagem do caminho /consultant/images/BR/{uuid}/
+    img_cid_pattern = re.compile(
+        r"/consultant/images/BR/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/",
+        re.IGNORECASE,
+    )
+    for img in soup.find_all(["img", "meta"], src=True):
+        m = img_cid_pattern.search(img.get("src", "") or img.get("content", ""))
+        if m:
+            return m.group(1).lower()
+    for meta in soup.find_all("meta", content=True):
+        m = img_cid_pattern.search(meta.get("content", ""))
+        if m:
+            return m.group(1).lower()
+
+    # 3. UUID na própria URL recebida
+    m = _UUID_PATTERN.search(profile_url)
+    if m:
+        return m.group(0).lower()
+
     return ""
 
 
 def _extract_name(soup: BeautifulSoup) -> str:
-    text = _first_text(soup, _NAME_SELECTORS)
-    # Remove títulos comuns que possam estar embutidos no h1
-    for suffix in [" - Mary Kay", " | Mary Kay", " – Mary Kay"]:
-        if suffix in text:
-            text = text.split(suffix)[0].strip()
-    return text
+    """
+    Nome da consultora.
+    Estrutura real: <div class="ibc-name"><h1 ...>Nome</h1>...
+    Fallback: og:title "Nome — Título Perfil"
+    """
+    # 1. h1 dentro de .ibc-name (o mais confiável)
+    el = soup.select_one(".ibc-name h1")
+    if el:
+        return el.get_text(strip=True)
+
+    # 2. og:title — formato "Nome — Título Perfil"
+    og = soup.find("meta", property="og:title") or soup.find("meta", attrs={"property": "og:title"})
+    if og and og.get("content"):
+        raw = og["content"]
+        if " — " in raw:
+            return raw.split(" — ")[0].strip()
+        if " - " in raw:
+            return raw.split(" - ")[0].strip()
+
+    # 3. Qualquer h1 na página (fallback)
+    h1 = soup.find("h1")
+    if h1:
+        return h1.get_text(strip=True)
+
+    return ""
 
 
 def _extract_title(soup: BeautifulSoup) -> str:
-    return _first_text(soup, _TITLE_SELECTORS)
+    """Título da consultora — classe .ibc-title."""
+    el = soup.select_one(".ibc-title")
+    if el:
+        return el.get_text(strip=True)
+    # Fallback: qualquer elemento com "title" no nome da classe
+    el = soup.select_one("[class*='title']")
+    if el:
+        t = el.get_text(strip=True)
+        if len(t) < 80:
+            return t
+    return ""
 
 
 def _extract_location(soup: BeautifulSoup) -> tuple[str, str, str]:
-    """Tenta extrair cidade, estado (sigla) e CEP do bloco de localização."""
-    city, state, zip_code = "", "", ""
+    """
+    Extrai cidade, estado (UF) e CEP.
 
-    location_text = _first_text(soup, _LOCATION_SELECTORS)
+    Estrutura real confirmada:
+      <span class="city">SAO PAULO,</span>
+      <span class="state">SP</span>
+      <span class="zip">02316-100</span>
+    """
+    city     = ""
+    state    = ""
+    zip_code = ""
 
-    # Tenta extrair CEP do texto (formato 00000-000)
-    cep_match = _CEP_PATTERN.search(location_text)
-    if cep_match:
-        zip_code = cep_match.group(0)
+    city_el = soup.select_one(".city")
+    if city_el:
+        city = city_el.get_text(strip=True).rstrip(",").strip()
 
-    # Padrão: "Cidade - UF" ou "Cidade, UF"
-    city_state_pattern = re.search(
-        r"([A-ZÀ-Ÿa-zà-ÿ\s]+)\s*[-,]\s*([A-Z]{2})", location_text
-    )
-    if city_state_pattern:
-        city = city_state_pattern.group(1).strip()
-        state = city_state_pattern.group(2).strip()
+    state_el = soup.select_one(".state")
+    if state_el:
+        state = state_el.get_text(strip=True).strip()
 
-    # Fallback: busca tags separadas por cidade e estado
-    if not city:
-        for sel in ["[class*='city']", "[class*='cidade']"]:
-            try:
-                el = soup.select_one(sel)
-                if el:
-                    city = el.get_text(strip=True)
-                    break
-            except Exception:
-                pass
-
-    if not state:
-        for sel in ["[class*='state']", "[class*='estado']"]:
-            try:
-                el = soup.select_one(sel)
-                if el:
-                    state = el.get_text(strip=True)
-                    break
-            except Exception:
-                pass
+    # .zip é o span separado (mais confiável que extrair do .location)
+    zip_el = soup.select_one(".zip")
+    if zip_el:
+        zip_code = zip_el.get_text(strip=True).strip()
+    else:
+        # Fallback: regex no .location
+        loc_el = soup.select_one(".location")
+        if loc_el:
+            cep_m = _CEP_PATTERN.search(loc_el.get_text(strip=True))
+            if cep_m:
+                zip_code = cep_m.group(0)
 
     return city, state, zip_code
 
 
 def _extract_phones(soup: BeautifulSoup) -> list[str]:
-    """Extrai telefones de links tel: e texto com padrão de fone."""
+    """Extrai telefones de links tel: (formato real: href='tel:(31) 99132-9302')."""
     phones: list[str] = []
-    seen: set[str] = set()
+    seen:   set[str]  = set()
 
-    def _add_phone(raw: str) -> None:
-        # Normaliza: mantém apenas dígitos + parênteses + traço + espaço
-        cleaned = raw.replace("tel:", "").strip()
-        if cleaned and cleaned not in seen:
-            seen.add(cleaned)
-            phones.append(cleaned)
-
-    # Links tel:
     for a in soup.find_all("a", href=True):
         href: str = a["href"]
         if href.startswith("tel:"):
-            _add_phone(href)
+            number = href.replace("tel:", "").strip()
+            if number and number not in seen:
+                seen.add(number)
+                phones.append(number)
 
-    # Texto da página com padrão de telefone
-    for text_node in soup.find_all(string=_PHONE_PATTERN):
-        for match in _PHONE_PATTERN.finditer(text_node):
-            _add_phone(match.group(0))
+    # Fallback: padrão de telefone em texto
+    if not phones:
+        for text_node in soup.find_all(string=_PHONE_PATTERN):
+            for match in _PHONE_PATTERN.finditer(str(text_node)):
+                n = match.group(0).strip()
+                if n not in seen:
+                    seen.add(n)
+                    phones.append(n)
 
-    return phones[:5]  # limita a 5 telefones por segurança
+    return phones[:5]
 
 
 def _extract_instagram(soup: BeautifulSoup) -> str:
-    """Extrai handle do Instagram (sem @)."""
-    # Links para instagram.com
+    """
+    Extrai o handle do Instagram (sem @).
+    Ignora o perfil oficial marykaybrasil.
+    Formato real: href='http://www.instagram.com/samantha_claudia_'
+    """
     for a in soup.find_all("a", href=True):
         href: str = a["href"]
         if "instagram.com" in href:
-            handle = href.rstrip("/").split("/")[-1]
-            # Remove query strings
-            handle = handle.split("?")[0]
-            if handle and handle not in ("", "instagram.com"):
+            handle = href.rstrip("/").split("/")[-1].split("?")[0]
+            if handle and handle.lower() not in ("", "instagram.com", "marykaybrasil"):
                 return handle
 
-    # Texto com @handle
+    # Fallback: @handle em texto
     ig_pattern = re.compile(r"@([\w.]{3,30})")
     for text_node in soup.find_all(string=ig_pattern):
-        match = ig_pattern.search(str(text_node))
-        if match:
-            return match.group(1)
+        m = ig_pattern.search(str(text_node))
+        if m:
+            return m.group(1)
 
     return ""
 
 
-def _extract_list_section(soup: BeautifulSoup, selectors: list[str]) -> list[str]:
-    """Extrai itens de uma seção de lista (serviços, entregas, etc.)."""
-    items: list[str] = []
+def _extract_items(soup: BeautifulSoup, *selectors: str) -> list[str]:
+    """
+    Extrai lista de itens por seletores CSS (tenta em ordem).
 
+    Exemplos confirmados:
+      '.specialties ul li' → ['Cuidados com a Pele', 'Dicas de Maquiagem', ...]
+      '.options ul li'     → ['Entrego na sua Casa', 'Envio pelos Correios', ...]
+    """
     for sel in selectors:
         try:
-            section = soup.select_one(sel)
-            if not section:
-                continue
-            # Tenta li filhos
-            lis = section.find_all("li")
-            if lis:
-                items = [li.get_text(strip=True) for li in lis if li.get_text(strip=True)]
-            else:
-                # Fallback: texto direto da seção
-                text = section.get_text(separator="\n", strip=True)
-                items = [t for t in text.splitlines() if t]
+            items = [el.get_text(strip=True) for el in soup.select(sel) if el.get_text(strip=True)]
             if items:
-                break
+                return items
         except Exception:
             continue
-
-    return items
+    return []

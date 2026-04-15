@@ -83,16 +83,17 @@ async def scraping_loop() -> None:
         _stats["ceps_processados"] += 1
 
         try:
-            # 1. Busca CIDs por CEP
-            cids = await _scraper.search_by_cep(cep)
+            # 1. Busca URLs de perfil por CEP
+            profile_urls = await _scraper.search_by_cep(cep)
 
-            # 2. Para cada CID, busca e salva o perfil
-            for cid in cids:
+            # 2. Para cada URL de perfil, busca e salva os dados
+            for profile_url in profile_urls:
                 try:
-                    lead = await _scraper.fetch_profile(cid)
-                    if not lead:
+                    lead = await _scraper.fetch_profile(profile_url)
+                    if not lead or not lead.get("cid"):
                         continue
 
+                    cid = lead["cid"]
                     is_new = upsert_lead(_db_conn, lead)
                     if is_new:
                         _stats["leads_novos"] += 1
@@ -109,7 +110,7 @@ async def scraping_loop() -> None:
 
                 except Exception as exc:
                     _stats["erros"] += 1
-                    logger.error(f"Erro ao processar perfil {cid}: {exc}")
+                    logger.error(f"Erro ao processar perfil {profile_url}: {exc}")
 
         except Exception as exc:
             _stats["erros"] += 1

@@ -1,0 +1,6 @@
+lead-scraper/__pycache__/
+lead-scraper/*.html
+lead-scraper/credentials.json
+lead-scraper/.env
+lead-scraper/leads.db
+lead-scraper/logs/
