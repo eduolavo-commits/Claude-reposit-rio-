@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mary Kay Scraper — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+    .card { background: #1a1f2e; border: 1px solid #2d3748; }
+    .feed-box { height: 420px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    .feed-box::-webkit-scrollbar { width: 4px; }
+    .feed-box::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 2px; }
+    .log-novo   { color: #68d391; font-weight: bold; background: rgba(104,211,145,0.06); }
+    .log-error  { color: #fc8181; }
+    .log-warn   { color: #f6e05e; }
+    .log-sync   { color: #63b3ed; }
+    .log-info   { color: #a0aec0; }
+    .log-debug  { color: #4a5568; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    .badge-ativo  { background: #276749; color: #68d391; }
+    .badge-parado { background: #742a2a; color: #fc8181; }
+    table { border-collapse: collapse; width: 100%; }
+    th { position: sticky; top: 0; background: #1a1f2e; z-index: 1; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .table-wrap { max-height: 500px; overflow-y: auto; }
+    .table-wrap::-webkit-scrollbar { width: 4px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 2px; }
+  </style>
+</head>
+<body class="min-h-screen p-4">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <div class="text-2xl">💄</div>
+      <div>
+        <h1 class="text-xl font-bold text-white">Mary Kay Scraper</h1>
+        <p class="text-xs text-gray-500">Dashboard em tempo real</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="scraper-badge" class="px-3 py-1 rounded-full text-xs font-semibold badge-parado">Verificando...</span>
+      <a href="/api/leads/export.csv"
+         class="px-4 py-2 rounded-lg text-sm font-medium bg-pink-700 hover:bg-pink-600 text-white transition">
+        ⬇ Export CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+    <div class="card rounded-xl p-4">
+      <div class="text-gray-400 text-xs mb-1">Total Leads</div>
+      <div id="stat-total" class="text-3xl font-bold text-white">—</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-gray-400 text-xs mb-1">Novos Hoje</div>
+      <div id="stat-hoje" class="text-3xl font-bold text-green-400">—</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-gray-400 text-xs mb-1">Estados</div>
+      <div id="stat-estados" class="text-3xl font-bold text-blue-400">—</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-gray-400 text-xs mb-1">CEPs Processados</div>
+      <div id="stat-ceps" class="text-3xl font-bold text-purple-400">—</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-gray-400 text-xs mb-1">Syncs p/ Sheets</div>
+      <div id="stat-syncs" class="text-3xl font-bold text-yellow-400">—</div>
+      <div id="stat-last-sync" class="text-xs text-gray-500 mt-1 truncate">—</div>
+    </div>
+  </div>
+
+  <!-- Chart + Feed -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+    <!-- Gráfico por Estado -->
+    <div class="card rounded-xl p-4">
+      <h2 class="text-sm font-semibold text-gray-300 mb-3">Leads por Estado</h2>
+      <canvas id="stateChart" height="200"></canvas>
+    </div>
+
+    <!-- Feed ao vivo -->
+    <div class="card rounded-xl p-4 flex flex-col">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-gray-300">Feed ao Vivo</h2>
+        <div class="flex items-center gap-1 text-xs text-green-400">
+          <span class="w-2 h-2 rounded-full bg-green-400 pulse"></span>
+          <span>SSE conectado</span>
+        </div>
+      </div>
+      <div id="feed" class="feed-box rounded-lg bg-gray-900 p-2 flex-1"></div>
+    </div>
+  </div>
+
+  <!-- Tabela de Leads -->
+  <div class="card rounded-xl p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <h2 class="text-sm font-semibold text-gray-300">Tabela de Leads</h2>
+      <div class="flex gap-2">
+        <input id="search-q" type="text" placeholder="Buscar nome, cidade, instagram..."
+          class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-sm text-white w-64 focus:outline-none focus:border-pink-500" />
+        <select id="search-state"
+          class="px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-sm text-gray-300 focus:outline-none focus:border-pink-500">
+          <option value="">Todos os estados</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap rounded-lg">
+      <table class="text-xs text-gray-300">
+        <thead>
+          <tr class="text-left text-gray-500 border-b border-gray-700">
+            <th class="px-3 py-2 font-medium">Nome</th>
+            <th class="px-3 py-2 font-medium">Título</th>
+            <th class="px-3 py-2 font-medium">Cidade / Estado</th>
+            <th class="px-3 py-2 font-medium">Telefone</th>
+            <th class="px-3 py-2 font-medium">Instagram</th>
+            <th class="px-3 py-2 font-medium">Serviços</th>
+            <th class="px-3 py-2 font-medium">Visto em</th>
+            <th class="px-3 py-2 font-medium">Perfil</th>
+          </tr>
+        </thead>
+        <tbody id="leads-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Paginação -->
+    <div class="flex items-center justify-between mt-3">
+      <span id="leads-info" class="text-xs text-gray-500"></span>
+      <div class="flex gap-2">
+        <button id="btn-prev" onclick="changePage(-1)"
+          class="px-3 py-1 rounded bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-40">← Anterior</button>
+        <button id="btn-next" onclick="changePage(1)"
+          class="px-3 py-1 rounded bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-40">Próxima →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="mt-4 text-center text-xs text-gray-600">
+    Atualiza automaticamente a cada 10s &nbsp;|&nbsp;
+    Erros hoje: <span id="stat-erros" class="text-red-400">—</span>
+  </div>
+
+<script>
+// ── Estado ──────────────────────────────────────────────────────────────────
+let currentPage = 1;
+let currentQ    = "";
+let currentState = "";
+let stateChart  = null;
+let allStates   = [];
+
+// ── SSE Feed ─────────────────────────────────────────────────────────────────
+function classifyLine(line) {
+  if (line.includes("NOVO LEAD"))   return "log-novo";
+  if (line.includes("| ERROR") || line.includes("| CRITICAL")) return "log-error";
+  if (line.includes("| WARNING"))   return "log-warn";
+  if (line.includes("Sync concluída")) return "log-sync";
+  if (line.includes("| DEBUG"))     return "log-debug";
+  return "log-info";
+}
+
+function appendFeedLine(line, scroll) {
+  const feed = document.getElementById("feed");
+  const div  = document.createElement("div");
+  div.className = "px-1 py-0.5 rounded " + classifyLine(line);
+  div.textContent = line;
+  feed.appendChild(div);
+  if (scroll) {
+    // Limita a 500 linhas
+    while (feed.children.length > 500) feed.removeChild(feed.firstChild);
+    feed.scrollTop = feed.scrollHeight;
+  }
+}
+
+function connectSSE() {
+  const es = new EventSource("/api/stream");
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      appendFeedLine(data.line, !data.initial);
+      // Após histórico inicial, vai para o final
+      if (!data.initial) {
+        const feed = document.getElementById("feed");
+        feed.scrollTop = feed.scrollHeight;
+      }
+    } catch(_) {}
+  };
+  es.onerror = () => {
+    setTimeout(connectSSE, 3000); // reconecta em 3s
+    es.close();
+  };
+  // Após carregar histórico, scroll para o final
+  setTimeout(() => {
+    const feed = document.getElementById("feed");
+    feed.scrollTop = feed.scrollHeight;
+  }, 500);
+}
+
+// ── Stats & Chart ────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const [statsRes, healthRes] = await Promise.all([
+      fetch("/api/stats"),
+      fetch("/api/health"),
+    ]);
+    const stats  = await statsRes.json();
+    const health = await healthRes.json();
+
+    document.getElementById("stat-total").textContent   = stats.total_leads;
+    document.getElementById("stat-hoje").textContent    = stats.leads_hoje;
+    document.getElementById("stat-estados").textContent = stats.estados_cobertos;
+    document.getElementById("stat-ceps").textContent    = stats.ceps_processados;
+    document.getElementById("stat-syncs").textContent   = stats.syncs;
+    document.getElementById("stat-erros").textContent   = stats.erros;
+    document.getElementById("stat-last-sync").textContent =
+      stats.last_sync ? "Última: " + stats.last_sync : "Sem sync hoje";
+
+    const badge = document.getElementById("scraper-badge");
+    if (health.scraper_running) {
+      badge.textContent = "⚡ ATIVO (PID " + health.pid + ")";
+      badge.className = "px-3 py-1 rounded-full text-xs font-semibold badge-ativo";
+    } else {
+      badge.textContent = "■ PARADO";
+      badge.className = "px-3 py-1 rounded-full text-xs font-semibold badge-parado";
+    }
+
+    // Atualiza filtro de estados
+    const labels = stats.leads_por_estado.map(s => s.state);
+    const counts = stats.leads_por_estado.map(s => s.count);
+
+    if (allStates.length === 0) {
+      allStates = labels;
+      const sel = document.getElementById("search-state");
+      labels.forEach(st => {
+        const opt = document.createElement("option");
+        opt.value = st; opt.textContent = st;
+        sel.appendChild(opt);
+      });
+    }
+
+    // Gráfico
+    if (!stateChart) {
+      const ctx = document.getElementById("stateChart").getContext("2d");
+      stateChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Leads",
+            data: counts,
+            backgroundColor: "rgba(236,72,153,0.7)",
+            borderColor: "rgba(236,72,153,1)",
+            borderWidth: 1,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#a0aec0", font: { size: 10 } }, grid: { color: "#2d3748" } },
+            y: { ticks: { color: "#a0aec0" }, grid: { color: "#2d3748" }, beginAtZero: true },
+          }
+        }
+      });
+    } else {
+      stateChart.data.labels   = labels;
+      stateChart.data.datasets[0].data = counts;
+      stateChart.update();
+    }
+
+  } catch(e) { console.error("Stats error:", e); }
+}
+
+// ── Tabela de Leads ──────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function loadLeads() {
+  try {
+    const params = new URLSearchParams({
+      q: currentQ,
+      state: currentState,
+      page: currentPage,
+      limit: 50,
+    });
+    const res  = await fetch("/api/leads?" + params);
+    const data = await res.json();
+
+    const tbody = document.getElementById("leads-body");
+    tbody.innerHTML = "";
+
+    data.items.forEach(lead => {
+      const tr = document.createElement("tr");
+      tr.className = "border-b border-gray-800";
+
+      const phones    = lead.phones || [];
+      const services  = (lead.services || []).join(", ");
+      const seen      = lead.first_seen ? lead.first_seen.slice(0, 10) : "";
+      const ig        = lead.instagram && !lead.instagram.toLowerCase().includes("marykaybrasil")
+        ? `<a href="https://instagram.com/${escHtml(lead.instagram)}" target="_blank"
+               class="text-pink-400 hover:underline">@${escHtml(lead.instagram)}</a>`
+        : `<span class="text-gray-600">${escHtml(lead.instagram)}</span>`;
+
+      tr.innerHTML = `
+        <td class="px-3 py-2 font-medium text-white whitespace-nowrap">${escHtml(lead.name)}</td>
+        <td class="px-3 py-2 text-gray-400 whitespace-nowrap">${escHtml(lead.title)}</td>
+        <td class="px-3 py-2 whitespace-nowrap">${escHtml(lead.city)} / <span class="font-bold text-blue-400">${escHtml(lead.state)}</span></td>
+        <td class="px-3 py-2 whitespace-nowrap">${escHtml(phones[0] || "")}</td>
+        <td class="px-3 py-2 whitespace-nowrap">${ig}</td>
+        <td class="px-3 py-2 text-gray-400 max-w-xs truncate" title="${escHtml(services)}">${escHtml(services)}</td>
+        <td class="px-3 py-2 text-gray-500 whitespace-nowrap">${escHtml(seen)}</td>
+        <td class="px-3 py-2">
+          <a href="${escHtml(lead.profile_url)}" target="_blank"
+             class="text-pink-400 hover:underline text-xs">Ver</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Info de paginação
+    const from = (currentPage - 1) * 50 + 1;
+    const to   = Math.min(currentPage * 50, data.total);
+    document.getElementById("leads-info").textContent =
+      `Exibindo ${from}–${to} de ${data.total} leads`;
+
+    document.getElementById("btn-prev").disabled = currentPage <= 1;
+    document.getElementById("btn-next").disabled = currentPage >= data.pages;
+
+  } catch(e) { console.error("Leads error:", e); }
+}
+
+function changePage(delta) {
+  currentPage = Math.max(1, currentPage + delta);
+  loadLeads();
+}
+
+// Busca com debounce
+let searchTimer;
+document.getElementById("search-q").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentQ    = e.target.value;
+    currentPage = 1;
+    loadLeads();
+  }, 300);
+});
+
+document.getElementById("search-state").addEventListener("change", e => {
+  currentState = e.target.value;
+  currentPage  = 1;
+  loadLeads();
+});
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+connectSSE();
+loadStats();
+loadLeads();
+
+// Refresh periódico
+setInterval(loadStats, 10_000);
+setInterval(loadLeads, 15_000);
+</script>
+</body>
+</html>
