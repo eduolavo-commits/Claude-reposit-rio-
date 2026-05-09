@@ -43,6 +43,7 @@ export function CourseEditor({
           sales_url: c.sales_url,
           whatsapp_url: c.whatsapp_url,
           syllabus_md: c.syllabus_md,
+          recommendation_role: c.recommendation_role,
           signature_name: c.signature_name,
           signature_role: c.signature_role,
           status: c.status,
@@ -225,6 +226,14 @@ export function CourseEditor({
             value={c.syllabus_md ?? ""}
             onChange={(e) => set("syllabus_md", e.target.value)}
             placeholder={"## Módulo 1\n- Tópico 1\n- Tópico 2"}
+            className="w-full rounded-md border border-white/10 bg-bg px-3 py-2 text-sm"
+          />
+        </Field>
+        <Field label='Cargo/função usado na Carta de Recomendação (ex.: "Auxiliar de Veterinário")' className="md:col-span-2">
+          <input
+            value={c.recommendation_role ?? ""}
+            onChange={(e) => set("recommendation_role", e.target.value)}
+            placeholder="Se vazio, usa o título do curso"
             className="w-full rounded-md border border-white/10 bg-bg px-3 py-2 text-sm"
           />
         </Field>

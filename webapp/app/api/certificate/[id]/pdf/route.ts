@@ -34,7 +34,7 @@ export async function GET(
 
   const { data: course } = await supabase
     .from("courses")
-    .select("title, syllabus_md, signature_name, signature_role")
+    .select("title, syllabus_md, recommendation_role, signature_name, signature_role")
     .eq("id", cert.course_id)
     .maybeSingle();
   if (!course) return NextResponse.json({ error: "course_not_found" }, { status: 404 });
@@ -49,6 +49,7 @@ export async function GET(
     fullName: cert.full_name_snapshot,
     cpf: cert.cpf_snapshot,
     courseTitle: course.title,
+    recommendationRole: course.recommendation_role ?? null,
     syllabusMarkdown: course.syllabus_md,
     issuedAt: cert.last_issued_at,
     signatureName: course.signature_name,

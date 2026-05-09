@@ -44,6 +44,7 @@ export interface Course {
   sales_url: string | null;
   whatsapp_url: string | null;
   syllabus_md: string | null;
+  recommendation_role: string | null;
   signature_name: string;
   signature_role: string;
   signature_image_url: string | null;
