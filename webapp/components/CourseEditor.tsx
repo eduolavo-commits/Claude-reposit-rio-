@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Category, Course, Lesson, Module } from "@/lib/supabase/types";
+import { FileUpload } from "./FileUpload";
 
 type ModuleWithLessons = Module & { lessons: Lesson[] };
 
@@ -44,6 +45,8 @@ export function CourseEditor({
           whatsapp_url: c.whatsapp_url,
           syllabus_md: c.syllabus_md,
           recommendation_role: c.recommendation_role,
+          certificate_template_url: c.certificate_template_url,
+          recommendation_template_url: c.recommendation_template_url,
           signature_name: c.signature_name,
           signature_role: c.signature_role,
           status: c.status,
@@ -198,18 +201,22 @@ export function CourseEditor({
             </Field>
           </>
         )}
-        <Field label="Thumbnail (URL)">
-          <input
-            value={c.thumbnail_url ?? ""}
-            onChange={(e) => set("thumbnail_url", e.target.value)}
-            className="w-full rounded-md border border-white/10 bg-bg px-3 py-2 text-sm"
+        <Field label="Thumbnail (capa do card)">
+          <FileUpload
+            folder={`courses/${c.id}/thumb`}
+            value={c.thumbnail_url}
+            onChange={(url) => set("thumbnail_url", url)}
+            label="Enviar thumbnail"
+            hint="JPG ou PNG, recomendado 16:9 (1280×720)"
           />
         </Field>
-        <Field label="Banner (URL)">
-          <input
-            value={c.banner_url ?? ""}
-            onChange={(e) => set("banner_url", e.target.value)}
-            className="w-full rounded-md border border-white/10 bg-bg px-3 py-2 text-sm"
+        <Field label="Banner (topo do curso/Hero)">
+          <FileUpload
+            folder={`courses/${c.id}/banner`}
+            value={c.banner_url}
+            onChange={(url) => set("banner_url", url)}
+            label="Enviar banner"
+            hint="JPG ou PNG, recomendado 1920×1080"
           />
         </Field>
         <Field label="Descrição (markdown)" className="md:col-span-2">
@@ -235,6 +242,25 @@ export function CourseEditor({
             onChange={(e) => set("recommendation_role", e.target.value)}
             placeholder="Se vazio, usa o título do curso"
             className="w-full rounded-md border border-white/10 bg-bg px-3 py-2 text-sm"
+          />
+        </Field>
+
+        <Field label="Modelo do CERTIFICADO (frente — imagem)">
+          <FileUpload
+            folder={`courses/${c.id}/certificate`}
+            value={c.certificate_template_url}
+            onChange={(url) => set("certificate_template_url", url)}
+            label="Enviar arte do certificado"
+            hint="PNG ou JPG paisagem (recomendado 2000×1414). Os campos #NOME, #CPF, #CURSO e #DATA são impressos por cima automaticamente."
+          />
+        </Field>
+        <Field label="Modelo da CARTA DE RECOMENDAÇÃO (imagem)">
+          <FileUpload
+            folder={`courses/${c.id}/letter`}
+            value={c.recommendation_template_url}
+            onChange={(url) => set("recommendation_template_url", url)}
+            label="Enviar arte da carta"
+            hint="PNG ou JPG retrato (recomendado 1414×2000). Se vazio, usamos um modelo padrão com o texto oficial."
           />
         </Field>
         <Field label="Status">

@@ -34,7 +34,9 @@ export async function GET(
 
   const { data: course } = await supabase
     .from("courses")
-    .select("title, syllabus_md, recommendation_role, signature_name, signature_role")
+    .select(
+      "title, syllabus_md, recommendation_role, certificate_template_url, recommendation_template_url, signature_name, signature_role",
+    )
     .eq("id", cert.course_id)
     .maybeSingle();
   if (!course) return NextResponse.json({ error: "course_not_found" }, { status: 404 });
@@ -55,6 +57,8 @@ export async function GET(
     signatureName: course.signature_name,
     signatureRole: course.signature_role,
     verificationUrl,
+    certificateTemplateUrl: course.certificate_template_url ?? null,
+    recommendationTemplateUrl: course.recommendation_template_url ?? null,
   });
 
   return new NextResponse(Buffer.from(pdf), {

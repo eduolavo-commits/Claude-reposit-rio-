@@ -1,5 +1,7 @@
 # AGS.CLICK — Área de Membros
 
+> **Sem tempo? Quer no ar hoje?** Siga o [`QUICK_DEPLOY.md`](QUICK_DEPLOY.md) — passo a passo de ~30 min usando Supabase Cloud + Vercel (sem servidor próprio, sem código).
+
 Plataforma de cursos online da AGS.CLICK Treinamentos com layout escuro estilo Netflix, área de aluno
 PWA, geração de certificados em PDF, inbox privado de dúvidas e admin web.
 

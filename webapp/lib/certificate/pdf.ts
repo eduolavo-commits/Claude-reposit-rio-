@@ -4,6 +4,7 @@ import {
   rgb,
   PageSizes,
   type PDFFont,
+  type PDFImage,
   type PDFPage,
 } from "pdf-lib";
 import { formatDateBR, maskCpf } from "@/lib/utils";
@@ -34,6 +35,24 @@ interface CertificateInput {
   signatureName: string;
   signatureRole: string;
   verificationUrl: string;
+  /** URL pública do PNG/JPG enviado pelo admin para a frente do certificado. */
+  certificateTemplateUrl?: string | null;
+  /** URL pública do PNG/JPG enviado pelo admin para a carta de recomendação. */
+  recommendationTemplateUrl?: string | null;
+}
+
+async function fetchImage(pdf: PDFDocument, url: string): Promise<PDFImage | null> {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (url.toLowerCase().endsWith(".jpg") || url.toLowerCase().endsWith(".jpeg")) {
+      return await pdf.embedJpg(buf);
+    }
+    return await pdf.embedPng(buf);
+  } catch {
+    return null;
+  }
 }
 
 export async function buildCertificatePdf(input: CertificateInput): Promise<Uint8Array> {
@@ -46,7 +65,7 @@ export async function buildCertificatePdf(input: CertificateInput): Promise<Uint
 
   if (input.type === "recommendation") {
     const portrait = pdf.addPage(PageSizes.A4); // [595.28, 841.89]
-    drawRecommendationLetter(portrait, helv, helvBold, helvItalic, input);
+    await drawRecommendationLetter(pdf, portrait, helv, helvBold, helvItalic, input);
   } else {
     const landscape = pdf.addPage(PageSizes.A4.slice().reverse() as [number, number]);
     await drawCertificateFront(pdf, landscape, helv, helvBold, helvItalic, times, timesBold, input);
@@ -73,17 +92,28 @@ async function drawCertificateFront(
 ) {
   const { width, height } = page.getSize();
 
-  // Tenta usar PNG enviado pelo cliente (lib/certificate/template-front.png).
-  // Se existir, desenha apenas as variáveis dinâmicas por cima.
+  // Prioridade do template:
+  //   1) URL enviada pelo admin (por curso) — courses.certificate_template_url
+  //   2) PNG global em lib/certificate/template-front.png (fallback antigo)
+  //   3) Desenho próprio (cantos navy+ouro)
   let usedTemplate = false;
-  try {
-    const tplPath = path.join(process.cwd(), "lib", "certificate", "template-front.png");
-    const bytes = readFileSync(tplPath);
-    const img = await pdf.embedPng(bytes);
-    page.drawImage(img, { x: 0, y: 0, width, height });
-    usedTemplate = true;
-  } catch {
-    drawCertificateBackground(page, width, height);
+  if (input.certificateTemplateUrl) {
+    const img = await fetchImage(pdf, input.certificateTemplateUrl);
+    if (img) {
+      page.drawImage(img, { x: 0, y: 0, width, height });
+      usedTemplate = true;
+    }
+  }
+  if (!usedTemplate) {
+    try {
+      const tplPath = path.join(process.cwd(), "lib", "certificate", "template-front.png");
+      const bytes = readFileSync(tplPath);
+      const img = await pdf.embedPng(bytes);
+      page.drawImage(img, { x: 0, y: 0, width, height });
+      usedTemplate = true;
+    } catch {
+      drawCertificateBackground(page, width, height);
+    }
   }
 
   if (!usedTemplate) {
@@ -326,7 +356,8 @@ function drawCertificateBack(
 // CARTA DE RECOMENDAÇÃO — retrato
 // ============================================================================
 
-function drawRecommendationLetter(
+async function drawRecommendationLetter(
+  pdf: PDFDocument,
   page: PDFPage,
   helv: PDFFont,
   helvBold: PDFFont,
@@ -336,57 +367,74 @@ function drawRecommendationLetter(
   const { width, height } = page.getSize();
   page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(1, 1, 1) });
 
-  // Faixas decorativas (espelhando o estilo do certificado)
-  page.drawRectangle({ x: 0, y: height - 70, width: width, height: 8, color: NAVY });
-  page.drawRectangle({ x: 0, y: height - 80, width: width, height: 4, color: GOLD });
-  page.drawRectangle({ x: 0, y: 60, width: width, height: 4, color: GOLD });
-  page.drawRectangle({ x: 0, y: 50, width: width, height: 8, color: NAVY });
+  // Se há template enviado pelo admin, desenha por baixo e sobrepõe só os textos
+  // dinâmicos. Caso contrário, mantém faixas decorativas + cabeçalho próprio.
+  let usedTemplate = false;
+  if (input.recommendationTemplateUrl) {
+    const img = await fetchImage(pdf, input.recommendationTemplateUrl);
+    if (img) {
+      page.drawImage(img, { x: 0, y: 0, width, height });
+      usedTemplate = true;
+    }
+  }
+
+  if (!usedTemplate) {
+    // Faixas decorativas (espelhando o estilo do certificado)
+    page.drawRectangle({ x: 0, y: height - 70, width: width, height: 8, color: NAVY });
+    page.drawRectangle({ x: 0, y: height - 80, width: width, height: 4, color: GOLD });
+    page.drawRectangle({ x: 0, y: 60, width: width, height: 4, color: GOLD });
+    page.drawRectangle({ x: 0, y: 50, width: width, height: 8, color: NAVY });
+  }
 
   const margin = 60;
   let y = height - 110;
 
-  // Cabeçalho da organização
-  page.drawText(ORG_LEGAL, {
-    x: margin,
-    y,
-    size: 18,
-    font: helvBold,
-    color: NAVY,
-  });
-  y -= 16;
-  page.drawText("Carta de Recomendação Oficial", {
-    x: margin,
-    y,
-    size: 12,
-    font: helvItalic,
-    color: GOLD,
-  });
-  y -= 14;
-  page.drawText(`CNPJ ${ORG_CNPJ} — ${ORG_ADDRESS}`, {
-    x: margin,
-    y,
-    size: 9,
-    font: helv,
-    color: rgb(0.35, 0.35, 0.35),
-  });
-  y -= 10;
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: width - margin, y },
-    thickness: 0.6,
-    color: rgb(0.8, 0.8, 0.8),
-  });
-
-  // Saudação
-  y -= 36;
-  page.drawText("A quem possa interessar:", {
-    x: margin,
-    y,
-    size: 12,
-    font: helvBold,
-    color: DARK,
-  });
-  y -= 30;
+  if (!usedTemplate) {
+    // Cabeçalho da organização (só quando não usamos o template)
+    page.drawText(ORG_LEGAL, {
+      x: margin,
+      y,
+      size: 18,
+      font: helvBold,
+      color: NAVY,
+    });
+    y -= 16;
+    page.drawText("Carta de Recomendação Oficial", {
+      x: margin,
+      y,
+      size: 12,
+      font: helvItalic,
+      color: GOLD,
+    });
+    y -= 14;
+    page.drawText(`CNPJ ${ORG_CNPJ} — ${ORG_ADDRESS}`, {
+      x: margin,
+      y,
+      size: 9,
+      font: helv,
+      color: rgb(0.35, 0.35, 0.35),
+    });
+    y -= 10;
+    page.drawLine({
+      start: { x: margin, y },
+      end: { x: width - margin, y },
+      thickness: 0.6,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+    y -= 36;
+    page.drawText("A quem possa interessar:", {
+      x: margin,
+      y,
+      size: 12,
+      font: helvBold,
+      color: DARK,
+    });
+    y -= 30;
+  } else {
+    // Quando há template, abaixamos o ponto de partida para o texto cair na
+    // área central do PDF (fica abaixo do cabeçalho da arte).
+    y = height - 230;
+  }
 
   // Corpo da carta
   const role = (input.recommendationRole?.trim() || input.courseTitle).trim();
