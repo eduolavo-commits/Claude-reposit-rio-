@@ -1,6 +1,7 @@
 import { getState, update, findContact, findChannel, findAgent, findQueue, uid } from '../state.js';
 import { avatar, refreshIcons, toast, emptyState } from '../components.js';
 import { icon } from '../icons.js';
+import { isBackendEnabled, apiSendMessage } from '../api.js';
 
 let activeTab = 'favoritos'; // favoritos|chats|fila|contatos
 let activeConvId = null;
@@ -274,9 +275,13 @@ export function bindChats() {
 
   const send = document.getElementById('btn-send');
   const ta = document.getElementById('msg-input');
-  const sendNow = () => {
+  const sendNow = async () => {
     if (!ta || !ta.value.trim()) return;
     const text = ta.value.trim();
+    ta.value = '';
+    const conv = getState().conversations.find(c=>c.id===activeConvId);
+    const contact = conv && findContact(conv.contactId);
+    // optimistic append
     update(s => {
       const c = s.conversations.find(c=>c.id===activeConvId);
       if (!c) return;
@@ -284,6 +289,15 @@ export function bindChats() {
       c.time = 'agora';
     });
     setTimeout(()=>{ const sc=document.getElementById('msg-scroll'); if(sc) sc.scrollTop = sc.scrollHeight; },10);
+    // if backend is enabled, send for real via Evolution
+    if (isBackendEnabled() && contact?.phone) {
+      try {
+        await apiSendMessage(contact.phone, text);
+        toast('Mensagem enviada via WhatsApp ✓','success');
+      } catch (e) {
+        toast('Falha no envio: '+e.message,'error');
+      }
+    }
   };
   if (send) send.addEventListener('click', sendNow);
   if (ta) {

@@ -48,12 +48,24 @@ whatsapp-crm/
         └── configuracoes.js  # canais, filas, tags, equipe, webhooks
 ```
 
-## Próximos passos (produção)
+## Conectar WhatsApp de verdade (Evolution API)
 
-Para virar produção real seria preciso:
+A pasta `backend/` tem um servidor Node.js pronto que conecta com sua Evolution API. Veja `backend/README.md` para o passo-a-passo completo.
 
-1. **Backend** com Node/Postgres (ou similar) para persistir contatos/conversas/vendas e expor uma API.
-2. **Worker de webhooks** para receber eventos do WhatsApp Cloud API e da Evolution API e empurrar via WebSocket pro frontend.
-3. **Fila de jobs** (BullMQ/Redis) para os disparos em massa respeitando rate limits.
-4. **Integração real com Claude API** — em `state.apiSettings.claude.apiKey` está o ponto de plug. O backend chama `messages.create` da Anthropic SDK passando `systemPrompt` + histórico da conversa.
-5. **Auth** (Auth.js, Clerk) e multi-tenant.
+Resumo:
+
+```bash
+cd backend
+npm install
+cp .env.example .env       # edite com sua URL/key/instância da Evolution
+npm start
+```
+
+Depois, no frontend, vá em **Configurações → Backend**, cole `http://localhost:3001` e clique em **Salvar e conectar**. Pronto — mensagens vão de verdade pelo WhatsApp.
+
+## Próximos passos (produção real)
+
+1. **Banco de dados** — trocar o `data.json` por Postgres/MongoDB no backend.
+2. **Fila de jobs** (BullMQ/Redis) para os disparos em massa respeitando rate limits.
+3. **Auth** (Auth.js, Clerk) e multi-tenant.
+4. **Deploy do backend** num VPS (Render, Railway, Fly.io ou DigitalOcean).

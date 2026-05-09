@@ -1,6 +1,7 @@
 import { getState, setView, loadState } from './state.js';
 import { Sidebar, TopBar } from './components.js';
 import { refreshIcons } from './icons.js';
+import { isBackendEnabled, connectWebSocket } from './api.js';
 
 import { ChatsView, bindChats }              from './views/chats.js';
 import { FilaView, bindFila }                from './views/fila.js';
@@ -54,3 +55,8 @@ function render() {
 window.addEventListener('app:render', render);
 document.addEventListener('DOMContentLoaded', render);
 render();
+
+// Auto-connect to backend WebSocket if configured
+if (isBackendEnabled()) {
+  connectWebSocket();
+}

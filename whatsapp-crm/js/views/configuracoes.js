@@ -1,10 +1,12 @@
 import { getState, update, resetState, uid } from '../state.js';
 import { openModal, modalShell, toast } from '../components.js';
 import { icon } from '../icons.js';
+import { getBackendUrl, setBackendUrl, apiHealth, connectWebSocket, isBackendEnabled, apiInstanceConnect, apiInstanceStatus } from '../api.js';
 
 let activeTab = 'channels';
 
 const TABS = [
+  { id:'backend',  label:'Backend',       ic:'server' },
   { id:'channels', label:'Canais & APIs', ic:'plug' },
   { id:'queues',   label:'Filas',         ic:'inbox' },
   { id:'tags',     label:'Tags',          ic:'tag' },
@@ -36,6 +38,7 @@ export function ConfiguracoesView() {
 function renderTab() {
   const s = getState();
   switch (activeTab) {
+    case 'backend':  return renderBackend(s);
     case 'channels': return renderChannels(s);
     case 'queues':   return renderQueues(s);
     case 'tags':     return renderTags(s);
@@ -45,6 +48,53 @@ function renderTab() {
     case 'data':     return renderData(s);
   }
   return '';
+}
+
+function renderBackend(s) {
+  const url = getBackendUrl();
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-xl font-bold">Backend & Integrações</h1>
+        <div class="text-sm text-slate-500">Conecte o frontend ao servidor Node.js que fala com a Evolution API</div>
+      </div>
+      <button class="btn btn-ghost" id="be-test">${icon('activity',{size:14})} Testar conexão</button>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <div class="font-semibold mb-3">URL do backend</div>
+      <input class="input" id="be-url" value="${url}" placeholder="http://localhost:3001 (ou https://seu-servidor.com)" />
+      <div class="text-xs text-slate-500 mt-2">
+        Sem URL → modo offline (localStorage). Com URL configurada, o sistema envia mensagens reais via Evolution e recebe via WebSocket.
+      </div>
+      <div class="flex items-center gap-2 mt-3">
+        <button class="btn btn-primary" id="be-save">${icon('check',{size:14})} Salvar e conectar</button>
+        <button class="btn btn-ghost" id="be-clear">Modo offline</button>
+        <span id="be-status" class="ml-auto text-sm"></span>
+      </div>
+    </div>
+
+    <div class="card p-5 mb-4">
+      <div class="font-semibold mb-3">Status da instância WhatsApp</div>
+      <div id="be-instance" class="text-sm text-slate-600">Clique em "Verificar" pra conferir.</div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-ghost" id="be-check">${icon('refresh-cw',{size:14})} Verificar status</button>
+        <button class="btn btn-violet" id="be-qr">${icon('qr-code',{size:14})} Mostrar QR Code</button>
+      </div>
+    </div>
+
+    <div class="card p-5 border-l-4 border-amber-400">
+      <div class="font-semibold text-sm mb-2">${icon('info',{size:14,cls:'inline'})} Como rodar o backend</div>
+      <ol class="text-sm text-slate-600 list-decimal list-inside space-y-1">
+        <li>Tenha Node.js 18+ instalado</li>
+        <li>Vá em <code>whatsapp-crm/backend/</code></li>
+        <li>Copie <code>.env.example</code> para <code>.env</code> e configure a URL/key da sua Evolution</li>
+        <li>Rode <code class="bg-slate-100 px-1.5 rounded">npm install</code></li>
+        <li>Rode <code class="bg-slate-100 px-1.5 rounded">npm start</code></li>
+        <li>Cole <code>http://localhost:3001</code> no campo acima</li>
+      </ol>
+    </div>
+  `;
 }
 
 function renderChannels(s) {
@@ -235,6 +285,53 @@ export function bindConfiguracoes() {
     activeTab = el.dataset.cfgTab;
     window.dispatchEvent(new CustomEvent('app:render'));
   }));
+
+  // backend tab
+  const beSave = document.getElementById('be-save');
+  if (beSave) beSave.addEventListener('click', async () => {
+    const url = document.getElementById('be-url').value.trim();
+    setBackendUrl(url);
+    if (url) {
+      try {
+        const h = await apiHealth();
+        document.getElementById('be-status').innerHTML = `<span class="pill pill-green">✓ conectado · evolution: ${h.evolution}</span>`;
+        connectWebSocket();
+        toast('Backend conectado','success');
+      } catch (e) {
+        document.getElementById('be-status').innerHTML = `<span class="pill pill-red">✗ ${e.message}</span>`;
+        toast('Falha: '+e.message,'error');
+      }
+    } else {
+      document.getElementById('be-status').innerHTML = '<span class="pill pill-gray">modo offline</span>';
+      toast('Modo offline ativado','info');
+    }
+  });
+  const beClear = document.getElementById('be-clear');
+  if (beClear) beClear.addEventListener('click', () => { setBackendUrl(''); window.dispatchEvent(new CustomEvent('app:render')); });
+  const beTest = document.getElementById('be-test');
+  if (beTest) beTest.addEventListener('click', async () => {
+    try { const h = await apiHealth(); toast(`Backend OK · Evolution: ${h.evolution}`,'success'); }
+    catch (e) { toast('Erro: '+e.message,'error'); }
+  });
+  const beCheck = document.getElementById('be-check');
+  if (beCheck) beCheck.addEventListener('click', async () => {
+    try {
+      const r = await apiInstanceStatus();
+      const state = r.instance?.state || r.state || JSON.stringify(r);
+      document.getElementById('be-instance').innerHTML = `Status: <b>${state}</b>`;
+    } catch (e) { document.getElementById('be-instance').textContent = 'Erro: '+e.message; }
+  });
+  const beQr = document.getElementById('be-qr');
+  if (beQr) beQr.addEventListener('click', async () => {
+    try {
+      const r = await apiInstanceConnect();
+      const code = r.code || r.base64 || r.qrcode?.base64 || '';
+      const body = code
+        ? `<div class="text-center"><img src="${code.startsWith('data:')?code:'data:image/png;base64,'+code}" class="mx-auto rounded border border-slate-200" style="max-width:280px"/><div class="text-xs text-slate-500 mt-3">Escaneie no WhatsApp → Aparelhos conectados → Conectar aparelho</div></div>`
+        : `<pre class="text-xs bg-slate-50 p-3 rounded overflow-auto">${JSON.stringify(r,null,2)}</pre>`;
+      openModal(modalShell({ title:'QR Code da instância', body, footer:`<button class="btn btn-ghost" data-close>Fechar</button>` }));
+    } catch (e) { toast('Erro: '+e.message,'error'); }
+  });
 
   // channels
   document.querySelectorAll('[data-add-type]').forEach(el => el.addEventListener('click', () => openChannelModal(el.dataset.addType)));
