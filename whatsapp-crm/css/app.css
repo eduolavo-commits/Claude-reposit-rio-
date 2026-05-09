@@ -1,0 +1,147 @@
+/* ---- base ---- */
+html, body { height: 100%; }
+body { -webkit-font-smoothing: antialiased; }
+
+/* Custom scrollbars */
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Avatar */
+.avatar {
+  width: 40px; height: 40px; border-radius: 9999px;
+  background: linear-gradient(135deg, #94a3b8, #64748b);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: white; font-weight: 600; flex-shrink: 0; position: relative;
+}
+.avatar::after {
+  content: ''; position: absolute; bottom: -2px; right: -2px;
+  width: 14px; height: 14px; border-radius: 9999px;
+  background: #22c55e; border: 2px solid white;
+}
+.avatar.no-channel::after { display: none; }
+
+/* Sidebar */
+.side-link {
+  display:flex; align-items:center; gap:.75rem; padding:.625rem .875rem;
+  border-radius: .625rem; color:#cbd5e1; cursor:pointer;
+  transition: background .15s, color .15s;
+  font-weight: 500; font-size:.9rem;
+}
+.side-link:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-link.active { background: rgba(34,197,94,.15); color:#fff; }
+.side-link.active svg { color:#22c55e; }
+.side-badge {
+  margin-left:auto; background:#22c55e; color:white;
+  font-size:.7rem; font-weight:700; padding:.05rem .45rem; border-radius:9999px;
+}
+
+/* Tabs */
+.tab {
+  display:flex; flex-direction:column; align-items:center; gap:.25rem;
+  padding:.5rem .75rem; cursor:pointer; color:#64748b; font-size:.78rem;
+  border-bottom: 2px solid transparent; position:relative;
+}
+.tab.active { color:#16a34a; border-color:#16a34a; }
+
+/* Card */
+.card { background:white; border-radius: 14px; box-shadow: var(--tw-shadow,0 1px 2px rgba(15,23,42,.04),0 4px 12px rgba(15,23,42,.06)); }
+
+/* Chat bubble */
+.bubble-in { background:white; }
+.bubble-out { background:#dcf8c6; }
+.bubble {
+  max-width: 70%; padding: .55rem .8rem; border-radius: 10px;
+  font-size:.875rem; line-height:1.35; box-shadow: 0 1px 1px rgba(0,0,0,.08);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:.5rem; padding:.55rem .9rem; border-radius:.625rem; font-weight:600; font-size:.875rem; transition: all .15s; }
+.btn-primary { background:#16a34a; color:white; }
+.btn-primary:hover { background:#15803d; }
+.btn-violet { background:#7c5cff; color:white; }
+.btn-violet:hover { background:#6c48f2; }
+.btn-ghost { background:transparent; color:#334155; border:1px solid #e2e8f0; }
+.btn-ghost:hover { background:#f8fafc; }
+.btn-danger { background:#ef4444; color:white; }
+.btn-danger:hover { background:#dc2626; }
+
+/* Input */
+.input, .select, .textarea {
+  width:100%; border:1px solid #e2e8f0; border-radius:.625rem;
+  padding:.55rem .8rem; font-size:.875rem; background:white;
+  outline:none; transition: border .15s, box-shadow .15s;
+}
+.input:focus, .select:focus, .textarea:focus { border-color:#16a34a; box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+.label { font-size:.78rem; font-weight:600; color:#475569; margin-bottom:.3rem; display:block; }
+
+/* Pill */
+.pill { display:inline-flex; align-items:center; gap:.35rem; padding:.18rem .55rem; border-radius:9999px; font-size:.72rem; font-weight:600; }
+.pill-green { background:#dcfce7; color:#15803d; }
+.pill-red   { background:#fee2e2; color:#b91c1c; }
+.pill-blue  { background:#dbeafe; color:#1d4ed8; }
+.pill-yellow{ background:#fef3c7; color:#a16207; }
+.pill-gray  { background:#e2e8f0; color:#334155; }
+.pill-violet{ background:#ede9fe; color:#6d28d9; }
+
+/* Kanban */
+.kanban-col { background:#f1f5f9; border-radius:14px; padding:.85rem; min-width:300px; max-width:300px; flex:0 0 300px; display:flex; flex-direction:column; }
+.kanban-card { background:white; border-radius:10px; padding:.75rem; box-shadow:0 1px 2px rgba(15,23,42,.05); cursor:grab; border:1px solid transparent; }
+.kanban-card:hover { border-color:#cbd5e1; }
+.kanban-card.dragging { opacity:.4; }
+
+/* Flow canvas */
+.flow-canvas {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.flow-node {
+  position:absolute; background:white; border-radius:14px;
+  border:2px solid #e2e8f0; padding:.85rem 1rem; min-width:230px;
+  box-shadow:0 4px 12px rgba(15,23,42,.06); cursor:move; user-select:none;
+}
+.flow-node.selected { border-color:#7c5cff; box-shadow:0 0 0 4px rgba(124,92,255,.18); }
+.flow-node h4 { font-size:.85rem; font-weight:700; display:flex; align-items:center; gap:.4rem; margin-bottom:.4rem; }
+.flow-node p { font-size:.78rem; color:#475569; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55);
+  display:flex; align-items:center; justify-content:center; z-index:50;
+  padding: 1.5rem;
+  animation: fadein .15s ease;
+}
+.modal {
+  background:white; border-radius:16px; max-width:600px; width:100%;
+  max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3);
+  animation: pop .18s ease;
+}
+.modal.lg { max-width: 880px; }
+@keyframes fadein { from{opacity:0} to{opacity:1} }
+@keyframes pop   { from{transform:scale(.96); opacity:.4} to{transform:scale(1);opacity:1} }
+
+/* Toast */
+.toast {
+  background:#0f172a; color:white; padding:.8rem 1rem; border-radius:10px;
+  font-size:.85rem; box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  display:flex; align-items:center; gap:.6rem; min-width:240px;
+  animation: slidein .2s ease;
+}
+.toast.success { background:#16a34a; }
+.toast.error   { background:#dc2626; }
+@keyframes slidein { from{transform:translateY(20px); opacity:0} to{transform:translateY(0); opacity:1} }
+
+/* Channel mark on avatar (whatsapp green dot replaced by icon) */
+.ch-wa { background:#25D366; }
+.ch-ig { background: linear-gradient(135deg,#fd5,#dc2743,#bc1888); }
+.ch-tg { background:#229ED9; }
+
+/* Misc */
+.dot { width:6px; height:6px; border-radius:9999px; background:#94a3b8; display:inline-block; }
+.row-hover:hover { background:#f8fafc; cursor:pointer; }
+
+.skeleton { background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius:6px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }

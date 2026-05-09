@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Digisac — Atendimento WhatsApp + CRM + IA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="stylesheet" href="css/app.css" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: {
+              50:'#eef9f3', 100:'#d6f1e1', 500:'#22c55e', 600:'#16a34a', 700:'#15803d'
+            },
+            sidebar: { DEFAULT: '#102a3a', hover: '#173b51', active: '#1f4a64' },
+            ink: { 900:'#0f172a', 700:'#334155', 500:'#64748b', 300:'#cbd5e1' }
+          },
+          boxShadow: {
+            soft: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06)'
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="font-sans bg-slate-100 text-ink-900 antialiased">
+  <div id="app" class="h-screen w-screen flex overflow-hidden"></div>
+
+  <!-- Modal mount -->
+  <div id="modal-root"></div>
+  <div id="toast-root" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-2"></div>
+
+  <script type="module" src="js/state.js"></script>
+  <script type="module" src="js/icons.js"></script>
+  <script type="module" src="js/components.js"></script>
+  <script type="module" src="js/views/chats.js"></script>
+  <script type="module" src="js/views/fila.js"></script>
+  <script type="module" src="js/views/contatos.js"></script>
+  <script type="module" src="js/views/crm.js"></script>
+  <script type="module" src="js/views/disparo.js"></script>
+  <script type="module" src="js/views/automacoes.js"></script>
+  <script type="module" src="js/views/agentes.js"></script>
+  <script type="module" src="js/views/relatorios.js"></script>
+  <script type="module" src="js/views/configuracoes.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
