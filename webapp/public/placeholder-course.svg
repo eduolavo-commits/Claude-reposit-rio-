@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#1f3a8a"/>
+      <stop offset="1" stop-color="#0b0d12"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="450" fill="url(#g)"/>
+  <g transform="translate(400 225)" font-family="Inter, sans-serif" text-anchor="middle">
+    <text fill="#d4a23a" font-size="72" font-weight="700">A</text>
+    <text fill="#fff" font-size="22" y="48">AGS.CLICK Treinamentos</text>
+  </g>
+</svg>
